@@ -1,3 +1,6 @@
+console.log('Serverless function started');
+
+require('dotenv').config();
 const express = require('express');
 const mongoose = require('mongoose');
 const cors = require('cors');
