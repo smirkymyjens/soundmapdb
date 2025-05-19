@@ -1,10 +1,14 @@
 console.log('Serverless function started');
 
-require('dotenv').config();
-const express = require('express');
-const mongoose = require('mongoose');
-const cors = require('cors');
-const path = require('path');
+import 'dotenv/config';
+import express from 'express';
+import mongoose from 'mongoose';
+import cors from 'cors';
+import path from 'path';
+import { fileURLToPath } from 'url';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
 const app = express();
 // const PORT = process.env.PORT || 3001; // PORT is not used in Vercel serverless
@@ -200,4 +204,4 @@ app.get('/health', async (req, res) => {
 // });
 
 // Export the app for Vercel serverless
-module.exports = app; 
+export default app; 
