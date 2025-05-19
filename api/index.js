@@ -257,7 +257,7 @@ app.get('/api/songs/cleanup', async (req, res) => {
       }
       console.log('Database reconnected successfully');
     }
-    const songs = await Song.find();
+    const songs = await Song.find().select('song.artists song.album.images song.id song.name song.album.id song.album.name song.uri song.popularity number owner').lean();
     const cleanedSongs = songs.map(item => {
       if (!item.song.artists && item.song.artist) {
         return item;
