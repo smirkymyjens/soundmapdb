@@ -99,63 +99,46 @@ const AddSongsContent = ({ songDatabase, setSongDatabase, getPassword }) => {
 
 
   const handleAddSong = async () => {
-    const password = getPassword(); // Get the password
-    if (!password) { // If password is not obtained (user cancelled prompt)
-      return;
-    }
-
     if (selectedSong && printNumber && owner) {
       const newSong = {
-        id: Date.now(), // Simple unique ID
-        song: { // Spotify song object structure
-          id: selectedSong.id,
-          name: selectedSong.name,
-          artists: selectedSong.artists.map(artist => ({ id: artist.id, name: artist.name })), // Simplify artist data
-          album: {
-            id: selectedSong.album.id,
-            name: selectedSong.album.name,
-            images: selectedSong.album.images,
-          },
-          uri: selectedSong.uri,
-          popularity: selectedSong.popularity, // Add popularity here
-        },
-        number: printNumber, // Use the number from the input
-        owner: owner,
+        id: Date.now(),
+        song: selectedSong,
+        number: printNumber,
+        owner: owner
       };
-
-      const updatedDatabase = [...songDatabase, newSong];
-      setSongDatabase(updatedDatabase); // Update local state
-
-      // Save to backend (and thus songDatabase.json)
+      
       try {
-        const response = await fetch(`${BACKEND_API_URL}/api/songs/add`, { // Updated fetch URL
+        const response = await fetch(`${BACKEND_API_URL}/api/songs`, {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
-            'X-Password': password // Include the password in a custom header
           },
-          body: JSON.stringify(newSong), // Send the new song object
+          body: JSON.stringify(newSong)
         });
 
         if (!response.ok) {
-          console.error('Failed to save song to database file', response.statusText);
-          // Optionally revert local state or show error to user
-        } else {
-          console.log('Song added and saved to database file');
-          // Clear input fields after successful save
+          throw new Error('Failed to add song');
+        }
+
+        const result = await response.json();
+        if (result.success) {
+          const updatedDatabase = [...songDatabase, result.song];
+          setSongDatabase(updatedDatabase);
+          localStorage.setItem('songDatabase', JSON.stringify(updatedDatabase));
+
+          // Reset fields after adding
           setSearchQuery('');
           setPrintNumber('');
           setOwner('');
           setSelectedSong(null);
-          setSearchResults([]);
         }
       } catch (error) {
-        console.error('Error saving song to database file:', error);
-        // Optionally revert local state or show error to user
+        console.error('Error adding song:', error);
+        // Fallback to local storage only
+        const updatedDatabase = [...songDatabase, newSong];
+        setSongDatabase(updatedDatabase);
+        localStorage.setItem('songDatabase', JSON.stringify(updatedDatabase));
       }
-
-    } else {
-      alert('Please select a song, enter a number, and enter an owner.');
     }
   };
 

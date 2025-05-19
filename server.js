@@ -1,86 +1,140 @@
 const express = require('express');
-const fs = require('fs');
-const path = require('path');
+const mongoose = require('mongoose');
 const cors = require('cors');
+const path = require('path');
 
 const app = express();
-const PORT = 3001;
-const DATABASE_FILE = path.join(__dirname, 'songDatabase.json');
+const PORT = process.env.PORT || 3001;
 
 // Middleware
 app.use(cors());
 app.use(express.json());
 app.use(express.static(path.join(__dirname, 'dist')));
 
-// Create database file if it doesn't exist
-if (!fs.existsSync(DATABASE_FILE)) {
-  fs.writeFileSync(DATABASE_FILE, JSON.stringify([]));
-}
+// MongoDB Schema
+const songSchema = new mongoose.Schema({
+  id: Number,
+  song: {
+    id: String,
+    name: String,
+    artists: [{
+      id: String,
+      name: String
+    }],
+    album: {
+      id: String,
+      name: String,
+      images: [{
+        height: Number,
+        width: Number,
+        url: String
+      }]
+    },
+    uri: String,
+    popularity: Number
+  },
+  number: String,
+  owner: String
+});
 
-// Get the database
-app.get('/api/songs', (req, res) => {
+const Song = mongoose.model('Song', songSchema);
+
+// MongoDB connection with retry logic
+const connectWithRetry = async () => {
   try {
-    const data = fs.readFileSync(DATABASE_FILE, 'utf8');
-    res.json(JSON.parse(data));
+    const mongoUri = process.env.MONGODB_URI;
+    if (!mongoUri) {
+      console.error('MONGODB_URI is not defined in environment variables');
+      return false;
+    }
+
+    await mongoose.connect(mongoUri, {
+      useNewUrlParser: true,
+      useUnifiedTopology: true,
+      serverSelectionTimeoutMS: 5000,
+      socketTimeoutMS: 45000,
+    });
+    console.log('Connected to MongoDB');
+    return true;
   } catch (error) {
-    console.error('Error reading database:', error);
-    res.status(500).json({ error: 'Failed to read database' });
+    console.error('MongoDB connection error:', error);
+    return false;
+  }
+};
+
+// Initial connection attempt
+connectWithRetry();
+
+// Get all songs
+app.get('/api/songs', async (req, res) => {
+  try {
+    if (!mongoose.connection.readyState) {
+      const connected = await connectWithRetry();
+      if (!connected) {
+        return res.status(503).json({ error: 'Database connection failed' });
+      }
+    }
+    const songs = await Song.find();
+    res.json(songs);
+  } catch (error) {
+    console.error('Error fetching songs:', error);
+    res.status(500).json({ error: 'Failed to fetch songs' });
   }
 });
 
-// Save to the database
-app.post('/api/songs', (req, res) => {
+// Add a new song
+app.post('/api/songs', async (req, res) => {
   try {
-    fs.writeFileSync(DATABASE_FILE, JSON.stringify(req.body, null, 2));
-    res.json({ success: true });
+    if (!mongoose.connection.readyState) {
+      const connected = await connectWithRetry();
+      if (!connected) {
+        return res.status(503).json({ error: 'Database connection failed' });
+      }
+    }
+    const newSong = new Song(req.body);
+    await newSong.save();
+    res.json({ success: true, song: newSong });
   } catch (error) {
-    console.error('Error saving database:', error);
-    res.status(500).json({ error: 'Failed to save database' });
+    console.error('Error saving song:', error);
+    res.status(500).json({ error: 'Failed to save song' });
   }
 });
 
-// Download the database file
-app.get('/api/songs/download', (req, res) => {
-  res.download(DATABASE_FILE, 'song-database.json');
-});
-
-// Clean up existing database by removing unnecessary Spotify data
-app.get('/api/songs/cleanup', (req, res) => {
+// Clean up database
+app.get('/api/songs/cleanup', async (req, res) => {
   try {
-    // Read the current database
-    const data = fs.readFileSync(DATABASE_FILE, 'utf8');
-    const songs = JSON.parse(data);
-    
-    // Clean up each song
+    if (!mongoose.connection.readyState) {
+      const connected = await connectWithRetry();
+      if (!connected) {
+        return res.status(503).json({ error: 'Database connection failed' });
+      }
+    }
+    const songs = await Song.find();
     const cleanedSongs = songs.map(item => {
-      // Skip already cleaned songs with stats
-      if (
-        !item.song.artists && 
-        item.song.artist
-      ) {
+      if (!item.song.artists && item.song.artist) {
         return item;
       }
       
-      // Extract only essential data
       const simplifiedSong = {
         id: item.song.id,
         name: item.song.name,
         artist: item.song.artists ? item.song.artists[0].name : item.song.artist || 'Unknown Artist',
         albumImage: item.song.album && item.song.album.images && item.song.album.images.length > 1 
-          ? item.song.album.images[1].url  // Use medium-sized image for better quality
+          ? item.song.album.images[1].url
           : item.song.album && item.song.album.images && item.song.album.images.length > 0
-            ? item.song.album.images[0].url // Fallback to any available image
+            ? item.song.album.images[0].url
             : item.song.albumImage || null,
       };
       
       return {
-        ...item,
+        ...item.toObject(),
         song: simplifiedSong
       };
     });
     
-    // Save the cleaned database
-    fs.writeFileSync(DATABASE_FILE, JSON.stringify(cleanedSongs, null, 2));
+    await Promise.all(cleanedSongs.map(async (song) => {
+      await Song.findByIdAndUpdate(song._id, { song: song.song });
+    }));
     
     res.json({ success: true, message: 'Database cleaned successfully', count: cleanedSongs.length });
   } catch (error) {
@@ -89,12 +143,21 @@ app.get('/api/songs/cleanup', (req, res) => {
   }
 });
 
+// Health check endpoint
+app.get('/api/health', async (req, res) => {
+  const dbStatus = mongoose.connection.readyState === 1;
+  res.json({
+    status: 'ok',
+    database: dbStatus ? 'connected' : 'disconnected',
+    timestamp: new Date().toISOString()
+  });
+});
+
 // Serve the React app for any other routes
 app.get('*', (req, res) => {
   res.sendFile(path.join(__dirname, 'dist', 'index.html'));
 });
 
 app.listen(PORT, () => {
-  console.log(`Server running on http://localhost:${PORT}`);
-  console.log(`Database file: ${DATABASE_FILE}`);
+  console.log(`Server running on port ${PORT}`);
 }); 
