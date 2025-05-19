@@ -199,12 +199,10 @@ export default function DatabaseContent({ songDatabase, setSongDatabase, saveToJ
           </div>
         ) : (
           currentSongs.map(item => (
-            <div key={item.id} className="grid grid-cols-12 items-center py-1 border-b border-[#232825] last:border-b-0">
+            <div key={item._id} className="grid grid-cols-12 items-center py-1 border-b border-[#232825] last:border-b-0">
               <div className="col-span-1">
-                {item.song.album && item.song.album.images && item.song.album.images[2] ? (
-                  <img src={item.song.album.images[2].url} alt={item.song.name} className="w-7 h-7 rounded" />
-                ) : item.song.albumImage ? (
-                   <img src={item.song.albumImage} alt={item.song.name} className="w-7 h-7 rounded" />
+                {item.albumImage ? (
+                   <img src={item.albumImage} alt={item.song.name} className="w-7 h-7 rounded" />
                 ) : (
                   <div className="w-7 h-7 flex items-center justify-center bg-[#232825] rounded">
                     <FaMusic className="text-green-500 text-lg" />
@@ -212,15 +210,15 @@ export default function DatabaseContent({ songDatabase, setSongDatabase, saveToJ
                 )}
               </div>
               <div className="col-span-4">
-                <div className="text-white font-medium text-sm">{item.song.name}</div>
-                <div className="text-gray-400 text-xs">{item.song.artists ? item.song.artists.map(artist => artist.name).join(', ') : item.song.artist}</div>
+                <div className="text-white font-medium text-sm">{item.name}</div>
+                <div className="text-gray-400 text-xs">{item.artist}</div>
               </div>
               <div className="col-span-2 text-white text-sm">{item.number}</div>
               <div className="col-span-2 text-white text-sm">{item.owner}</div>
-              <div className="col-span-1 text-right text-white text-sm">{item.song.popularity}</div>
+              <div className="col-span-1 text-right text-white text-sm">{item.popularity}</div>
               <div className="col-span-1 text-right">
                 <button
-                  onClick={() => deleteSong(item.id)}
+                  onClick={() => deleteSong(item._id)}
                   className="text-gray-400 hover:text-red-500 p-1"
                   title="Delete song"
                 >
