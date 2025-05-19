@@ -119,23 +119,28 @@ app.get('/api/songs', async (req, res) => {
     const songs = await Song.find();
     console.log(`Found ${songs.length} songs`); // Log number of songs found
 
-    // Apply the same mapping logic as cleanup to format songs for the frontend
+    // Apply mapping logic to format songs for the frontend with more robust data extraction
     const formattedSongs = songs.map(item => {
         const simplifiedSong = {
             _id: item._id, // Include _id for delete operations
-            id: item.song.id,
-            name: item.song.name,
-            artist: item.song.artists && item.song.artists.length > 0 ? item.song.artists[0].name : item.song.artist || 'Unknown Artist',
-            albumImage: item.song.album && item.song.album.images && item.song.album.images.length > 1
-              ? item.song.album.images[1].url
-              : item.song.album && item.song.album.images && item.song.album.images.length > 0
-                ? item.song.album.images[0].url
-                : item.song.albumImage || null,
-            number: item.number,
-            owner: item.owner
+            id: item.song?.id, // Use optional chaining for safety
+            name: item.song?.name || 'Unknown Song', // Use optional chaining and fallback
+            // More robust artist extraction
+            artist: (item.song?.artists && item.song.artists.length > 0 
+                      ? item.song.artists.map(artist => artist.name).join(', ') 
+                      : item.song?.artist) || 'Unknown Artist', 
+            // More robust album image extraction
+            albumImage: (item.song?.album?.images && item.song.album.images.length > 0 
+                          ? item.song.album.images.find(image => image.url)?.url // Find the first image with a URL
+                          : item.song?.albumImage) || null, // Fallback to old albumImage or null
+            number: item.number || '', // Fallback for number
+            owner: item.owner || 'Unknown Owner', // Fallback for owner
+            popularity: item.song?.popularity || 0 // Fallback for popularity
           };
           return simplifiedSong;
     });
+
+    console.log('First few formatted songs:', formattedSongs.slice(0, 5)); // Log example formatted data
 
     res.json(formattedSongs);
   } catch (error) {
