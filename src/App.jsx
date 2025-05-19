@@ -69,40 +69,61 @@ const App = () => {
     fetchDatabase(setIsLoading, setSongDatabase, setError, setDbStatus);
   };
 
+  console.log('App component rendering. isLoggedIn:', isLoggedIn, 'isLoading:', isLoading, 'error:', !!error, 'dbStatus:', dbStatus); // Log state on render
+
   return (
     <div className="flex min-h-screen bg-black">
       {!isLoggedIn ? (
-        <Login
-          isOpen={isLoginModalOpen}
-          onClose={handleCloseLoginModal}
-          onLogin={handleLoginSuccess}
-        />
+        <>
+          {console.log('Rendering Login component')}
+          <Login
+            isOpen={isLoginModalOpen}
+            onClose={handleCloseLoginModal}
+            onLogin={handleLoginSuccess}
+          />
+        </>
       ) : (
         <>
+          {console.log('Rendering logged-in view')}
           <Sidebar activeTab={activeTab} setActiveTab={setActiveTab} />
           <div className="flex-1 p-8">
             {error && (
-              <div className="bg-red-500/10 border border-red-500 text-red-500 p-4 rounded-lg mb-4 flex justify-between items-center">
-                <span>{error}</span>
-                <button
-                  onClick={handleRetry}
-                  className="bg-red-500 text-white px-4 py-2 rounded hover:bg-red-600 transition-colors"
-                >
-                  Retry
-                </button>
-              </div>
+              <>
+                {console.log('Rendering error message')}
+                <div className="bg-red-500/10 border border-red-500 text-red-500 p-4 rounded-lg mb-4 flex justify-between items-center">
+                  <span>{error}</span>
+                  <button
+                    onClick={handleRetry}
+                    className="bg-red-500 text-white px-4 py-2 rounded hover:bg-red-600 transition-colors"
+                  >
+                    Retry
+                  </button>
+                </div>
+              </>
             )}
             {dbStatus === 'checking' && (
-              <div className="bg-blue-500/10 border border-blue-500 text-blue-500 p-4 rounded-lg mb-4">
-                Checking database connection...
-              </div>
+              <>
+                 {console.log('Rendering checking status')}
+                 <div className="bg-blue-500/10 border border-blue-500 text-blue-500 p-4 rounded-lg mb-4">
+                  Checking database connection...
+                </div>
+              </>
             )}
             {isLoading ? (
-              <p className="text-white">Loading...</p>
+              <>
+                {console.log('Rendering loading state')}
+                <p className="text-white">Loading...</p>
+              </>
             ) : activeTab === 'database' ? (
-              <DatabaseContent songDatabase={songDatabase} setSongDatabase={setSongDatabase} />
+              <>
+                {console.log('Rendering DatabaseContent')}
+                <DatabaseContent songDatabase={songDatabase} setSongDatabase={setSongDatabase} />
+              </>
             ) : (
-              <AddSongsContent songDatabase={songDatabase} setSongDatabase={setSongDatabase} />
+              <>
+                {console.log('Rendering AddSongsContent')}
+                <AddSongsContent songDatabase={songDatabase} setSongDatabase={setSongDatabase} />
+              </>
             )}
           </div>
         </>
