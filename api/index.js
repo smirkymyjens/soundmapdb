@@ -1,5 +1,8 @@
 console.log('Serverless function started');
 
+// Log raw MONGODB_URI from process.env
+console.log('Raw MONGODB_URI from process.env:', process.env.MONGODB_URI);
+
 import 'dotenv/config';
 import express from 'express';
 import mongoose from 'mongoose';
