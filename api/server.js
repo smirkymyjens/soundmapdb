@@ -48,22 +48,62 @@ const connectWithRetry = async () => {
       return false;
     }
 
-    await mongoose.connect(mongoUri, {
+    // Log connection attempt (without sensitive info)
+    console.log('Attempting to connect to MongoDB...');
+    
+    // Ensure the connection string is properly formatted
+    const formattedUri = mongoUri.trim();
+    
+    await mongoose.connect(formattedUri, {
       useNewUrlParser: true,
       useUnifiedTopology: true,
-      serverSelectionTimeoutMS: 5000,
+      serverSelectionTimeoutMS: 10000, // Increased timeout
       socketTimeoutMS: 45000,
+      connectTimeoutMS: 10000, // Added connect timeout
+      retryWrites: true,
+      retryReads: true,
     });
-    console.log('Connected to MongoDB');
+    
+    console.log('Successfully connected to MongoDB');
     return true;
   } catch (error) {
-    console.error('MongoDB connection error:', error);
+    console.error('MongoDB connection error:', error.message);
+    // Log more detailed error information
+    if (error.name === 'MongoServerSelectionError') {
+      console.error('Could not connect to MongoDB server. Please check your connection string and network settings.');
+    } else if (error.name === 'MongoParseError') {
+      console.error('Invalid MongoDB connection string format.');
+    }
     return false;
   }
 };
 
-// Initial connection attempt
-connectWithRetry();
+// Initial connection attempt with retry
+let retryCount = 0;
+const maxRetries = 3;
+
+const attemptConnection = async () => {
+  while (retryCount < maxRetries) {
+    console.log(`Connection attempt ${retryCount + 1} of ${maxRetries}`);
+    const connected = await connectWithRetry();
+    if (connected) {
+      return true;
+    }
+    retryCount++;
+    if (retryCount < maxRetries) {
+      console.log(`Retrying in 5 seconds...`);
+      await new Promise(resolve => setTimeout(resolve, 5000));
+    }
+  }
+  return false;
+};
+
+// Start connection attempt
+attemptConnection().then(success => {
+  if (!success) {
+    console.error('Failed to connect to MongoDB after multiple attempts');
+  }
+});
 
 // Get all songs
 app.get('/api/songs', async (req, res) => {

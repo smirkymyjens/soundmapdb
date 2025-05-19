@@ -5,20 +5,31 @@ import AddSongsContent from './AddSongsContent';
 import { API_URL } from './config';
 import Login from './Login';
 
-const fetchDatabase = async (setIsLoading, setSongDatabase, setError) => {
+const checkDatabaseHealth = async () => {
+  try {
+    const response = await fetch(`${API_URL}/api/health`);
+    if (!response.ok) {
+      throw new Error('Database service is unavailable');
+    }
+    const data = await response.json();
+    return data.database === 'connected';
+  } catch (error) {
+    console.error('Health check failed:', error);
+    return false;
+  }
+};
+
+const fetchDatabase = async (setIsLoading, setSongDatabase, setError, setDbStatus) => {
   try {
     setIsLoading(true);
     setError(null);
 
-    // First check if the database is healthy
-    const healthCheck = await fetch(`${API_URL}/api/health`);
-    if (!healthCheck.ok) {
-      throw new Error('Database service is unavailable');
-    }
+    // Check database health
+    const isHealthy = await checkDatabaseHealth();
+    setDbStatus(isHealthy ? 'connected' : 'disconnected');
 
-    const healthData = await healthCheck.json();
-    if (healthData.database !== 'connected') {
-      throw new Error('Database connection failed');
+    if (!isHealthy) {
+      throw new Error('Database connection failed. Please try again later.');
     }
 
     const cleanupResponse = await fetch(`${API_URL}/api/songs/cleanup`);
@@ -49,50 +60,64 @@ const fetchDatabase = async (setIsLoading, setSongDatabase, setError) => {
 const App = () => {
   const [isLoading, setIsLoading] = useState(false);
   const [songDatabase, setSongDatabase] = useState([]);
-  const [activeTab, setActiveTab] = useState('database'); // State to manage active tab
-  const [isLoginModalOpen, setIsLoginModalOpen] = useState(true); // State to control login modal visibility, initially open
-  const [isLoggedIn, setIsLoggedIn] = useState(false); // State to track if user is logged in
+  const [activeTab, setActiveTab] = useState('database');
+  const [isLoginModalOpen, setIsLoginModalOpen] = useState(true);
+  const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [error, setError] = useState(null);
+  const [dbStatus, setDbStatus] = useState('checking');
 
-  // Function to handle successful login from the modal
   const handleLoginSuccess = () => {
     setIsLoggedIn(true);
-    setIsLoginModalOpen(false); // Close the modal on successful login
+    setIsLoginModalOpen(false);
   };
 
-  // Function to handle closing the modal (optional, can be restricted)
   const handleCloseLoginModal = () => {
     // Forcing login, so perhaps don't allow closing without login?
     // setIsLoginModalOpen(false);
   };
 
   useEffect(() => {
-    // Only fetch database if logged in
     if (isLoggedIn) {
-      fetchDatabase(setIsLoading, setSongDatabase, setError);
+      fetchDatabase(setIsLoading, setSongDatabase, setError, setDbStatus);
     }
-  }, [isLoggedIn]); // Dependency on isLoggedIn ensures fetch happens after login
+  }, [isLoggedIn]);
+
+  const handleRetry = () => {
+    setError(null);
+    setDbStatus('checking');
+    fetchDatabase(setIsLoading, setSongDatabase, setError, setDbStatus);
+  };
 
   return (
-    <div className="flex min-h-screen bg-black"> {/* Added background color */}
-      {/* Conditionally render the main app content or the login modal */}
+    <div className="flex min-h-screen bg-black">
       {!isLoggedIn ? (
         <Login
           isOpen={isLoginModalOpen}
-          onClose={handleCloseLoginModal} // Pass the close handler
-          onLogin={handleLoginSuccess} // Pass the success handler
+          onClose={handleCloseLoginModal}
+          onLogin={handleLoginSuccess}
         />
       ) : (
         <>
           <Sidebar activeTab={activeTab} setActiveTab={setActiveTab} />
-          <div className="flex-1 p-8"> {/* Increased padding */}
+          <div className="flex-1 p-8">
             {error && (
-              <div className="bg-red-500/10 border border-red-500 text-red-500 p-4 rounded-lg mb-4">
-                {error}
+              <div className="bg-red-500/10 border border-red-500 text-red-500 p-4 rounded-lg mb-4 flex justify-between items-center">
+                <span>{error}</span>
+                <button
+                  onClick={handleRetry}
+                  className="bg-red-500 text-white px-4 py-2 rounded hover:bg-red-600 transition-colors"
+                >
+                  Retry
+                </button>
+              </div>
+            )}
+            {dbStatus === 'checking' && (
+              <div className="bg-blue-500/10 border border-blue-500 text-blue-500 p-4 rounded-lg mb-4">
+                Checking database connection...
               </div>
             )}
             {isLoading ? (
-              <p className="text-white">Loading...</p> // Styled loading text
+              <p className="text-white">Loading...</p>
             ) : activeTab === 'database' ? (
               <DatabaseContent songDatabase={songDatabase} setSongDatabase={setSongDatabase} />
             ) : (
