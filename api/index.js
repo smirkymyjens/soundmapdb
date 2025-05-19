@@ -119,8 +119,28 @@ app.get('/api/songs', async (req, res) => {
     const songs = await Song.find();
     console.log(`Found ${songs.length} songs`); // Log number of songs found
 
+    // Log the raw song data before formatting for debugging
+    console.log('Raw song data for first 5 items:', songs.slice(0, 5).map(item => item.song));
+
     // Apply mapping logic to format songs for the frontend with more robust data extraction
     const formattedSongs = songs.map(item => {
+        // Find a suitable album image URL
+        let albumImageUrl = null;
+        if (item.song?.album?.images && item.song.album.images.length > 0) {
+            // Try to find a 300x300 image first
+            const mediumImage = item.song.album.images.find(image => image.height === 300 || image.width === 300);
+            if (mediumImage?.url) {
+                albumImageUrl = mediumImage.url;
+            } else {
+                // Otherwise, take the URL of the first image with a URL
+                 albumImageUrl = item.song.album.images.find(image => image.url)?.url || null;
+            }
+        }
+         // Fallback to old albumImage property if no suitable image found in nested structure
+        if (!albumImageUrl && item.song?.albumImage) {
+             albumImageUrl = item.song.albumImage;
+        }
+
         const simplifiedSong = {
             _id: item._id, // Include _id for delete operations
             id: item.song?.id, // Use optional chaining for safety
@@ -129,10 +149,7 @@ app.get('/api/songs', async (req, res) => {
             artist: (item.song?.artists && item.song.artists.length > 0 
                       ? item.song.artists.map(artist => artist.name).join(', ') 
                       : item.song?.artist) || 'Unknown Artist', 
-            // More robust album image extraction
-            albumImage: (item.song?.album?.images && item.song.album.images.length > 0 
-                          ? item.song.album.images.find(image => image.url)?.url // Find the first image with a URL
-                          : item.song?.albumImage) || null, // Fallback to old albumImage or null
+            albumImage: albumImageUrl,
             number: item.number || '', // Fallback for number
             owner: item.owner || 'Unknown Owner', // Fallback for owner
             popularity: item.song?.popularity || 0 // Fallback for popularity
