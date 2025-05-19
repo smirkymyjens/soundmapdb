@@ -104,7 +104,7 @@ connectWithRetry().then(success => {
 });
 
 // Get all songs
-app.get('/songs', async (req, res) => {
+app.get('/api/songs', async (req, res) => {
   console.log('Received GET /api/songs request'); // Log request received
   try {
     if (mongoose.connection.readyState !== 1) {
@@ -126,7 +126,7 @@ app.get('/songs', async (req, res) => {
 });
 
 // Add a new song
-app.post('/songs', async (req, res) => {
+app.post('/api/songs', async (req, res) => {
   console.log('Received POST /api/songs request'); // Log request received
   try {
     if (mongoose.connection.readyState !== 1) {
@@ -150,7 +150,7 @@ app.post('/songs', async (req, res) => {
 });
 
 // Clean up database
-app.get('/songs/cleanup', async (req, res) => {
+app.get('/api/songs/cleanup', async (req, res) => {
   console.log('Received GET /api/songs/cleanup request'); // Log request received
   try {
     if (mongoose.connection.readyState !== 1) {
@@ -198,7 +198,7 @@ app.get('/songs/cleanup', async (req, res) => {
 });
 
 // Health check endpoint
-app.get('/health', async (req, res) => {
+app.get('/api/health', async (req, res) => {
   console.log('Received GET /api/health request'); // Log request received
   const dbStatus = mongoose.connection.readyState === 1;
   console.log(`Database status: ${dbStatus ? 'connected' : 'disconnected'}`); // Log database status

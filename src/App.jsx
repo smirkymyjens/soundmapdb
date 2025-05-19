@@ -9,9 +9,11 @@ const checkDatabaseHealth = async () => {
   try {
     const response = await fetch(`${API_URL}/api/health`);
     if (!response.ok) {
-      throw new Error('Database service is unavailable');
+      console.error('Health check failed: HTTP status', response.status);
+      return false;
     }
     const data = await response.json();
+    console.log('Health check response data:', data);
     return data.database === 'connected';
   } catch (error) {
     console.error('Health check failed:', error);
@@ -20,18 +22,28 @@ const checkDatabaseHealth = async () => {
 };
 
 const fetchDatabase = async (setIsLoading, setSongDatabase, setError, setDbStatus) => {
+  console.log('fetchDatabase function started');
   try {
     setIsLoading(true);
     setError(null);
+    setDbStatus('checking...');
 
     // Check database health
+    console.log('Checking database health...');
     const isHealthy = await checkDatabaseHealth();
-    setDbStatus(isHealthy ? 'connected' : 'disconnected');
+    console.log('Database health check result:', isHealthy);
 
     if (!isHealthy) {
-      throw new Error('Database connection failed. Please try again later.');
+      setError('Database connection failed. Please try again later.');
+      setDbStatus('disconnected');
+      setIsLoading(false);
+      console.log('Database not healthy, stopping fetch.');
+      return;
     }
 
+    setDbStatus('connected');
+
+    console.log('Fetching songs...');
     const cleanupResponse = await fetch(`${API_URL}/api/songs/cleanup`);
     if (!cleanupResponse.ok) {
       console.error('Failed to run database cleanup:', cleanupResponse.statusText);
@@ -43,17 +55,19 @@ const fetchDatabase = async (setIsLoading, setSongDatabase, setError, setDbStatu
     }
     const data = await response.json();
     setSongDatabase(data);
+    localStorage.setItem('songDatabase', JSON.stringify(data));
+    setDbStatus('connected');
+    console.log('Songs fetched successfully:', data.length, 'songs');
+
   } catch (error) {
-    console.error('Error fetching database:', error);
-    setError(error.message);
-    const savedData = localStorage.getItem('songDatabase');
-    if (savedData) {
-      setSongDatabase(JSON.parse(savedData));
-    } else {
-      setSongDatabase([]);
-    }
+    console.error('Error in fetchDatabase:', error);
+    setError(`Failed to load songs: ${error.message}`);
+    setDbStatus('disconnected');
+    setSongDatabase([]);
+    localStorage.setItem('songDatabase', JSON.stringify([]));
   } finally {
     setIsLoading(false);
+    console.log('fetchDatabase function finished');
   }
 };
 
@@ -64,7 +78,7 @@ const App = () => {
   const [isLoginModalOpen, setIsLoginModalOpen] = useState(true);
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [error, setError] = useState(null);
-  const [dbStatus, setDbStatus] = useState('checking');
+  const [dbStatus, setDbStatus] = useState('disconnected');
 
   const handleLoginSuccess = () => {
     setIsLoggedIn(true);
@@ -77,10 +91,9 @@ const App = () => {
   };
 
   useEffect(() => {
-    if (isLoggedIn) {
-      fetchDatabase(setIsLoading, setSongDatabase, setError, setDbStatus);
-    }
-  }, [isLoggedIn]);
+    console.log('useEffect triggered, fetching database...');
+    fetchDatabase(setIsLoading, setSongDatabase, setError, setDbStatus);
+  }, [/* Dependencies - add dependencies that should refetch the database if needed */]);
 
   const handleRetry = () => {
     setError(null);
