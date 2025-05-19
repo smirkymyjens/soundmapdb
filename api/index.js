@@ -65,6 +65,9 @@ const connectWithRetry = async () => {
 
     // Log connection attempt (without sensitive info)
     console.log('Attempting to connect to MongoDB...');
+    // Log the actual URI being used (masking password)
+    const maskedUri = mongoUri.replace(/mongodb:\/\/(.+?):(.+?)@/, 'mongodb://$1:********@');
+    console.log('Using MONGODB_URI:', maskedUri);
     console.log('MONGODB_URI is read. Length:', mongoUri.length); // Log presence and length
     console.log('MONGODB_URI starts with:', mongoUri.substring(0, 25) + '...'); // Log start of URI
 
