@@ -86,6 +86,9 @@ const connectWithRetry = async () => {
     });
 
     console.log('Successfully connected to MongoDB');
+    // Log the connected database name and collection name
+    console.log('Connected database name:', mongoose.connection.name);
+    console.log('Song model collection name:', Song.collection.name);
     return true;
   } catch (error) {
     console.error('MongoDB connection error during connectWithRetry:', error.message);
@@ -127,7 +130,7 @@ app.get('/api/songs', async (req, res) => {
       }
       console.log('Database reconnected successfully');
     }
-    const songs = await Song.find();
+    const songs = await Song.find().lean();
     console.log(`Found ${songs.length} songs`); // Log number of songs found
 
     // Log the raw song data before formatting for debugging
