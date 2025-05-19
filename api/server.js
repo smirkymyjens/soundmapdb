@@ -7,7 +7,7 @@ const cors = require('cors');
 const path = require('path');
 
 const app = express();
-const PORT = process.env.PORT || 3001;
+// const PORT = process.env.PORT || 3001; // PORT is not used in Vercel serverless
 
 // Middleware
 app.use(cors());
@@ -81,43 +81,28 @@ const connectWithRetry = async () => {
   }
 };
 
-// Initial connection attempt with retry
-let retryCount = 0;
-const maxRetries = 3;
-
-const attemptConnection = async () => {
-  while (retryCount < maxRetries) {
-    console.log(`Connection attempt ${retryCount + 1} of ${maxRetries}`);
-    const connected = await connectWithRetry();
-    if (connected) {
-      return true;
-    }
-    retryCount++;
-    if (retryCount < maxRetries) {
-      console.log(`Retrying in 5 seconds...`);
-      await new Promise(resolve => setTimeout(resolve, 5000));
-    }
-  }
-  return false;
-};
-
-// Start connection attempt
-attemptConnection().then(success => {
+// Connect to MongoDB when the serverless function is initialized
+connectWithRetry().then(success => {
   if (!success) {
-    console.error('Failed to connect to MongoDB after multiple attempts');
+    console.error('Initial MongoDB connection failed');
   }
 });
 
 // Get all songs
 app.get('/api/songs', async (req, res) => {
+  console.log('Received GET /api/songs request'); // Log request received
   try {
-    if (!mongoose.connection.readyState) {
+    if (mongoose.connection.readyState !== 1) {
+      console.log('Database not connected, attempting reconnect...');
       const connected = await connectWithRetry();
       if (!connected) {
+        console.error('Database connection failed on GET request');
         return res.status(503).json({ error: 'Database connection failed' });
       }
+      console.log('Database reconnected successfully');
     }
     const songs = await Song.find();
+    console.log(`Found ${songs.length} songs`); // Log number of songs found
     res.json(songs);
   } catch (error) {
     console.error('Error fetching songs:', error);
@@ -127,15 +112,21 @@ app.get('/api/songs', async (req, res) => {
 
 // Add a new song
 app.post('/api/songs', async (req, res) => {
+  console.log('Received POST /api/songs request'); // Log request received
   try {
-    if (!mongoose.connection.readyState) {
+    if (mongoose.connection.readyState !== 1) {
+      console.log('Database not connected, attempting reconnect...');
       const connected = await connectWithRetry();
       if (!connected) {
+        console.error('Database connection failed on POST request');
         return res.status(503).json({ error: 'Database connection failed' });
       }
+      console.log('Database reconnected successfully');
     }
     const newSong = new Song(req.body);
+    console.log('Saving new song:', newSong); // Log the song being saved
     await newSong.save();
+    console.log('Song saved successfully'); // Log successful save
     res.json({ success: true, song: newSong });
   } catch (error) {
     console.error('Error saving song:', error);
@@ -145,12 +136,16 @@ app.post('/api/songs', async (req, res) => {
 
 // Clean up database
 app.get('/api/songs/cleanup', async (req, res) => {
+  console.log('Received GET /api/songs/cleanup request'); // Log request received
   try {
-    if (!mongoose.connection.readyState) {
+    if (mongoose.connection.readyState !== 1) {
+      console.log('Database not connected, attempting reconnect...');
       const connected = await connectWithRetry();
       if (!connected) {
+        console.error('Database connection failed on cleanup request');
         return res.status(503).json({ error: 'Database connection failed' });
       }
+      console.log('Database reconnected successfully');
     }
     const songs = await Song.find();
     const cleanedSongs = songs.map(item => {
@@ -179,6 +174,7 @@ app.get('/api/songs/cleanup', async (req, res) => {
       await Song.findByIdAndUpdate(song._id, { song: song.song });
     }));
     
+    console.log('Database cleanup completed'); // Log successful cleanup
     res.json({ success: true, message: 'Database cleaned successfully', count: cleanedSongs.length });
   } catch (error) {
     console.error('Error cleaning database:', error);
@@ -188,7 +184,9 @@ app.get('/api/songs/cleanup', async (req, res) => {
 
 // Health check endpoint
 app.get('/api/health', async (req, res) => {
+  console.log('Received GET /api/health request'); // Log request received
   const dbStatus = mongoose.connection.readyState === 1;
+  console.log(`Database status: ${dbStatus ? 'connected' : 'disconnected'}`); // Log database status
   res.json({
     status: 'ok',
     database: dbStatus ? 'connected' : 'disconnected',
@@ -196,11 +194,10 @@ app.get('/api/health', async (req, res) => {
   });
 });
 
-// Serve the React app for any other routes
-app.get('*', (req, res) => {
-  res.sendFile(path.join(__dirname, 'dist', 'index.html'));
-});
+// Serve the React app for any other routes - NOT NEEDED in Vercel serverless for static assets
+// app.get('*', (req, res) => {
+//   res.sendFile(path.join(__dirname, 'dist', 'index.html'));
+// });
 
-app.listen(PORT, () => {
-  console.log(`Server running on port ${PORT}`);
-}); 
+// Export the app for Vercel serverless
+module.exports = app; 
