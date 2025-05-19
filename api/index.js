@@ -132,6 +132,12 @@ app.get('/api/songs', async (req, res) => {
 
     // Apply mapping logic to format songs for the frontend with more robust data extraction
     const formattedSongs = songs.map(item => {
+        // Add detailed logging here
+        console.log(`Processing song: ${item.song?.name || 'Unknown'} (ID: ${item.song?.id || 'Unknown'}`);
+        console.log('item.song:', item.song);
+        console.log('item.song.artists:', item.song?.artists);
+        console.log('item.song.album.images:', item.song?.album?.images);
+
         // Find a suitable album image URL
         let albumImageUrl = null;
         if (item.song?.album?.images && item.song.album.images.length > 0) {

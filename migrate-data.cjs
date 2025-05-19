@@ -5,28 +5,36 @@ const path = require('path');
 
 const DATABASE_FILE = path.join(__dirname, 'songDatabase.json');
 
-// MongoDB Schema (must match the one in server.js)
-const songSchema = new mongoose.Schema({
-  id: Number,
-  song: {
+// MongoDB Schemas
+const artistSchema = new mongoose.Schema({
+  id: String,
+  name: String
+}, { _id: false }); // Disable _id for subdocuments if not needed
+
+const imageSchema = new mongoose.Schema({
+  height: Number,
+  width: Number,
+  url: String
+}, { _id: false }); // Disable _id for subdocuments if not needed
+
+const albumSchema = new mongoose.Schema({
     id: String,
     name: String,
-    artists: [{
-      id: String,
-      name: String
-    }],
-    album: {
-      id: String,
-      name: String,
-      images: [{
-        height: Number,
-        width: Number,
-        url: String
-      }]
-    },
+    images: [imageSchema]
+}, { _id: false }); // Disable _id for subdocuments if not needed
+
+const songContentSchema = new mongoose.Schema({
+    id: String,
+    name: String,
+    artists: [artistSchema],
+    album: albumSchema,
     uri: String,
     popularity: Number
-  },
+}, { _id: false }); // Disable _id for subdocuments if not needed
+
+const songSchema = new mongoose.Schema({
+  id: Number,
+  song: songContentSchema,
   number: String,
   owner: String
 });
@@ -60,23 +68,72 @@ const migrateData = async () => {
     await Song.deleteMany({});
     console.log('Existing songs cleared.');
 
-    // Insert data into MongoDB
-    if (songsToMigrate.length > 0) {
-      console.log('Inserting songs into MongoDB...');
-      const result = await Song.insertMany(songsToMigrate);
-      console.log(`Successfully inserted ${result.length} songs into MongoDB.`);
-    } else {
-      console.log('No songs to insert.');
+    // Insert data into MongoDB one by one after manual construction and validation
+    console.log('Inserting songs into MongoDB one by one with manual construction...');
+    let insertedCount = 0;
+    let failedCount = 0;
+
+    for (const songData of songsToMigrate) {
+      try {
+        // Manually construct the document to ensure schema compliance
+        const songDocument = new Song({
+            id: songData.id,
+            song: {
+                id: songData.song?.id,
+                name: songData.song?.name,
+                // Ensure artists is an array of objects with name and id
+                artists: songData.song?.artists && Array.isArray(songData.song.artists)
+                    ? songData.song.artists.map(artist => ({ id: artist.id, name: artist.name }))
+                    : [],
+                 album: {
+                    id: songData.song?.album?.id,
+                    name: songData.song?.album?.name,
+                    // Ensure images is an array of objects with url, height, width
+                     images: songData.song?.album?.images && Array.isArray(songData.song.album.images)
+                        ? songData.song.album.images.map(image => ({ url: image.url, height: image.height, width: image.width }))
+                        : [],
+                 },
+                uri: songData.song?.uri,
+                popularity: songData.song?.popularity,
+            },
+            number: songData.number,
+            owner: songData.owner,
+        });
+
+        // Validate the document against the schema
+        await songDocument.validate();
+
+        // Log the document structure being saved (optional, but helpful for debugging)
+        // console.log('Saving document structure:', JSON.stringify(songDocument, null, 2));
+
+        // Save the document to the database
+        await songDocument.save();
+        insertedCount++;
+        // console.log(`Successfully inserted song: ${songData.song.name}`); // Optional: Log each song
+      } catch (error) {
+        failedCount++;
+        console.error(`Failed to insert song: ${songData.song?.name || 'Unknown Song'}. Error:`, error.message);
+         // Log more detailed validation errors if available
+        if (error.errors) {
+            for (const field in error.errors) {
+                console.error(`  Validation Error for field ${field}: ${error.errors[field].message}`);
+            }
+        }
+         // Log the original songData that failed to insert
+        console.error('  Original songData that failed:', JSON.stringify(songData, null, 2));
+      }
     }
 
+    console.log(`Migration finished. Successfully inserted ${insertedCount} songs, failed to insert ${failedCount} songs.`);
+
   } catch (error) {
-    console.error('Error during data migration:', error);
+    console.error('Error during data migration setup:', error);
   } finally {
     // Disconnect from MongoDB
     console.log('Disconnecting from MongoDB...');
     await mongoose.disconnect();
     console.log('Disconnected from MongoDB.');
-    process.exit(0);
+    // Do not process.exit(0) here, let it finish naturally or on error
   }
 };
 
