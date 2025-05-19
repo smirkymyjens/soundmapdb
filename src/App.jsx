@@ -5,42 +5,11 @@ import AddSongsContent from './AddSongsContent';
 import { API_URL } from './config';
 import Login from './Login';
 
-const checkDatabaseHealth = async () => {
-  try {
-    const response = await fetch(`${API_URL}/api/health`);
-    if (!response.ok) {
-      console.error('Health check failed: HTTP status', response.status);
-      return false;
-    }
-    const data = await response.json();
-    console.log('Health check response data:', data);
-    return data.database === 'connected';
-  } catch (error) {
-    console.error('Health check failed:', error);
-    return false;
-  }
-};
-
 const fetchDatabase = async (setIsLoading, setSongDatabase, setError, setDbStatus) => {
   console.log('fetchDatabase function started');
   try {
     setIsLoading(true);
     setError(null);
-    setDbStatus('checking...');
-
-    // Check database health
-    console.log('Checking database health...');
-    const isHealthy = await checkDatabaseHealth();
-    console.log('Database health check result:', isHealthy);
-
-    if (!isHealthy) {
-      setError('Database connection failed. Please try again later.');
-      setDbStatus('disconnected');
-      setIsLoading(false);
-      console.log('Database not healthy, stopping fetch.');
-      return;
-    }
-
     setDbStatus('connected');
 
     console.log('Fetching songs...');
@@ -56,7 +25,6 @@ const fetchDatabase = async (setIsLoading, setSongDatabase, setError, setDbStatu
     const data = await response.json();
     setSongDatabase(data);
     localStorage.setItem('songDatabase', JSON.stringify(data));
-    setDbStatus('connected');
     console.log('Songs fetched successfully:', data.length, 'songs');
 
   } catch (error) {
