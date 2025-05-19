@@ -118,7 +118,26 @@ app.get('/api/songs', async (req, res) => {
     }
     const songs = await Song.find();
     console.log(`Found ${songs.length} songs`); // Log number of songs found
-    res.json(songs);
+
+    // Apply the same mapping logic as cleanup to format songs for the frontend
+    const formattedSongs = songs.map(item => {
+        const simplifiedSong = {
+            _id: item._id, // Include _id for delete operations
+            id: item.song.id,
+            name: item.song.name,
+            artist: item.song.artists && item.song.artists.length > 0 ? item.song.artists[0].name : item.song.artist || 'Unknown Artist',
+            albumImage: item.song.album && item.song.album.images && item.song.album.images.length > 1
+              ? item.song.album.images[1].url
+              : item.song.album && item.song.album.images && item.song.album.images.length > 0
+                ? item.song.album.images[0].url
+                : item.song.albumImage || null,
+            number: item.number,
+            owner: item.owner
+          };
+          return simplifiedSong;
+    });
+
+    res.json(formattedSongs);
   } catch (error) {
     console.error('Error fetching songs:', error);
     res.status(500).json({ error: 'Failed to fetch songs' });
@@ -146,6 +165,40 @@ app.post('/api/songs', async (req, res) => {
   } catch (error) {
     console.error('Error saving song:', error);
     res.status(500).json({ error: 'Failed to save song' });
+  }
+});
+
+// Add DELETE endpoint for songs
+app.delete('/api/songs/:id', async (req, res) => {
+  console.log('Received DELETE /api/songs/:id request', req.params.id); // Log request received
+  try {
+    if (mongoose.connection.readyState !== 1) {
+      console.log('Database not connected, attempting reconnect...');
+      const connected = await connectWithRetry();
+      if (!connected) {
+        console.error('Database connection failed on DELETE request');
+        return res.status(503).json({ error: 'Database connection failed' });
+      }
+      console.log('Database reconnected successfully');
+    }
+    const songId = req.params.id;
+    // Validate if the ID is a valid Mongoose ObjectId if necessary
+    // if (!mongoose.Types.ObjectId.isValid(songId)) {
+    //   return res.status(400).json({ error: 'Invalid song ID' });
+    // }
+    
+    const result = await Song.findByIdAndDelete(songId);
+
+    if (!result) {
+      console.log('Song not found for deletion:', songId);
+      return res.status(404).json({ error: 'Song not found' });
+    }
+
+    console.log('Song deleted successfully:', songId);
+    res.json({ success: true, message: 'Song deleted successfully' });
+  } catch (error) {
+    console.error('Error deleting song:', error);
+    res.status(500).json({ error: 'Failed to delete song' });
   }
 });
 
