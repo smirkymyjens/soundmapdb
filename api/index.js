@@ -130,7 +130,7 @@ app.get('/api/songs', async (req, res) => {
       }
       console.log('Database reconnected successfully');
     }
-    const songs = await Song.find().lean();
+    const songs = await Song.find().select('song.artists song.album.images song.id song.name song.album.id song.album.name song.uri song.popularity number owner').lean();
     console.log(`Found ${songs.length} songs`); // Log number of songs found
 
     // Log the raw song data before formatting for debugging
@@ -257,7 +257,7 @@ app.get('/api/songs/cleanup', async (req, res) => {
       }
       console.log('Database reconnected successfully');
     }
-    const songs = await Song.find().select('song.artists song.album.images song.id song.name song.album.id song.album.name song.uri song.popularity number owner').lean();
+    const songs = await Song.find();
     const cleanedSongs = songs.map(item => {
       if (!item.song.artists && item.song.artist) {
         return item;
