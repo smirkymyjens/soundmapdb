@@ -19,27 +19,35 @@ app.use(express.json());
 app.use(express.static(path.join(__dirname, 'dist')));
 
 // MongoDB Schema
-const songSchema = new mongoose.Schema({
-  id: Number,
-  song: {
+const artistSchema = new mongoose.Schema({
+  id: String,
+  name: String
+}, { _id: false }); // Disable _id for subdocuments if not needed
+
+const imageSchema = new mongoose.Schema({
+  height: Number,
+  width: Number,
+  url: String
+}, { _id: false }); // Disable _id for subdocuments if not needed
+
+const albumSchema = new mongoose.Schema({
     id: String,
     name: String,
-    artists: [{
-      id: String,
-      name: String
-    }],
-    album: {
-      id: String,
-      name: String,
-      images: [{
-        height: Number,
-        width: Number,
-        url: String
-      }]
-    },
+    images: [imageSchema]
+}, { _id: false }); // Disable _id for subdocuments if not needed
+
+const songContentSchema = new mongoose.Schema({
+    id: String,
+    name: String,
+    artists: [artistSchema],
+    album: albumSchema,
     uri: String,
     popularity: Number
-  },
+}, { _id: false }); // Disable _id for subdocuments if not needed
+
+const songSchema = new mongoose.Schema({
+  id: Number,
+  song: songContentSchema,
   number: String,
   owner: String
 });
