@@ -57,39 +57,50 @@ const connectWithRetry = async () => {
 
     // Log connection attempt (without sensitive info)
     console.log('Attempting to connect to MongoDB...');
-    
+    console.log('MONGODB_URI is read. Length:', mongoUri.length); // Log presence and length
+    console.log('MONGODB_URI starts with:', mongoUri.substring(0, 25) + '...'); // Log start of URI
+
     // Ensure the connection string is properly formatted
     const formattedUri = mongoUri.trim();
-    
+
+    console.log('Connecting to MongoDB with formatted URI...');
     await mongoose.connect(formattedUri, {
       useNewUrlParser: true,
       useUnifiedTopology: true,
-      serverSelectionTimeoutMS: 10000, // Increased timeout
+      serverSelectionTimeoutMS: 15000, // Increased timeout
       socketTimeoutMS: 45000,
-      connectTimeoutMS: 10000, // Added connect timeout
+      connectTimeoutMS: 15000, // Increased connect timeout
       retryWrites: true,
       retryReads: true,
     });
-    
+
     console.log('Successfully connected to MongoDB');
     return true;
   } catch (error) {
-    console.error('MongoDB connection error:', error.message);
+    console.error('MongoDB connection error during connectWithRetry:', error.message);
     // Log more detailed error information
     if (error.name === 'MongoServerSelectionError') {
-      console.error('Could not connect to MongoDB server. Please check your connection string and network settings.');
+      console.error('Could not connect to MongoDB server. Please check your connection string, network settings, and firewall rules.');
     } else if (error.name === 'MongoParseError') {
       console.error('Invalid MongoDB connection string format.');
+    }
+     else {
+        console.error('Detailed MongoDB connection error object:', error);
     }
     return false;
   }
 };
 
 // Connect to MongoDB when the serverless function is initialized
+console.log('Initiating initial MongoDB connection...');
 connectWithRetry().then(success => {
   if (!success) {
     console.error('Initial MongoDB connection failed');
+  } else {
+      console.log('Initial MongoDB connection successful');
   }
+}).catch(err => {
+    console.error('Error during initial MongoDB connection promise handling:', err);
 });
 
 // Get all songs
