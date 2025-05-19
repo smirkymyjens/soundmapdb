@@ -1,9 +1,3 @@
 {
-  "version": 2,
-  "functions": {
-    "api/index.js": { "includeFiles": "", "memory": 1024 }
-  },
-  "rewrites": [
-    { "source": "/api/(.*)", "destination": "/api" }
-  ]
+  "version": 2
 } 
