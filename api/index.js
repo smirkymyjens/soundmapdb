@@ -171,7 +171,7 @@ app.get('/api/songs/cleanup', async (req, res) => {
       const simplifiedSong = {
         id: item.song.id,
         name: item.song.name,
-        artist: item.song.artists ? item.song.artists[0].name : item.song.artist || 'Unknown Artist',
+        artist: item.song.artists && item.song.artists.length > 0 ? item.song.artists[0].name : item.song.artist || 'Unknown Artist',
         albumImage: item.song.album && item.song.album.images && item.song.album.images.length > 1 
           ? item.song.album.images[1].url
           : item.song.album && item.song.album.images && item.song.album.images.length > 0
