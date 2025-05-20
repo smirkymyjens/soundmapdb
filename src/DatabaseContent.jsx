@@ -72,16 +72,11 @@ export default function DatabaseContent({ songDatabase, setSongDatabase, saveToJ
 
   // Sort filtered songs based on state
   const sortedSongs = [...filteredSongs].sort((a, b) => {
-    // Default sort by id descending (assuming _id or a similar ID is used for default)
-    // If using spotifyId for default sort, change b.id - a.id to compare spotifyId strings
+    // Default sort by most recently added (_id descending)
     if (sortColumn === null) {
-       // Assuming _id or original 'id' is used for default. Adjust if spotifyId is preferred.
-       // If your simplified backend returns 'id' as spotifyId, use that.
-       // Let's sort by name by default if no column is selected for simplicity with flattened data.
-       const aName = (a.name || '').toLowerCase();
-       const bName = (b.name || '').toLowerCase();
-       if (aName < bName) return -1;
-       if (aName > bName) return 1;
+       // Compare _id strings for descending order
+       if (a._id < b._id) return 1;
+       if (a._id > b._id) return -1;
        return 0;
     }
 

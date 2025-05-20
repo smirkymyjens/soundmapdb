@@ -100,11 +100,16 @@ const AddSongsContent = ({ songDatabase, setSongDatabase, getPassword }) => {
 
   const handleAddSong = async () => {
     if (selectedSong && printNumber && owner) {
+      // Construct the new song object with the flattened schema for the backend
       const newSong = {
-        id: Date.now(),
-        song: selectedSong,
-        number: printNumber,
-        owner: owner
+        spotifyId: selectedSong.id, // Use the Spotify track ID for the new spotifyId field
+        name: selectedSong.name,
+        artists: selectedSong.artists, // Spotify data already provides artists in a compatible array structure
+        album: selectedSong.album,   // Spotify data already provides album in a compatible object structure
+        uri: selectedSong.uri,
+        popularity: selectedSong.popularity,
+        number: printNumber, // Get the number from the input field
+        owner: owner         // Get the owner from the input field
       };
       
       try {

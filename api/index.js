@@ -203,11 +203,21 @@ app.post('/api/songs', async (req, res) => {
       }
       console.log('Database reconnected successfully');
     }
-    const newSong = new Song(req.body);
+    const newSong = {
+      spotifyId: req.body.spotifyId, // Use the Spotify track ID as spotifyId
+      name: req.body.name,
+      artists: req.body.artists, // Spotify data already has artists as an array of objects
+      album: req.body.album,   // Spotify data already has album as an object with images
+      uri: req.body.uri,
+      popularity: req.body.popularity,
+      number: req.body.number, // Get from input field
+      owner: req.body.owner         // Get from input field
+    };
     console.log('Saving new song:', newSong); // Log the song being saved
-    await newSong.save();
+    const song = new Song(newSong);
+    await song.save();
     console.log('Song saved successfully'); // Log successful save
-    res.json({ success: true, song: newSong });
+    res.json({ success: true, song: song });
   } catch (error) {
     console.error('Error saving song:', error);
     res.status(500).json({ error: 'Failed to save song' });
@@ -216,6 +226,7 @@ app.post('/api/songs', async (req, res) => {
 
 // Add DELETE endpoint for songs
 app.delete('/api/songs/:id', async (req, res) => {
+  console.log('DELETE /api/songs/:id route hit', req.params.id); // Add this log
   console.log('Received DELETE /api/songs/:id request', req.params.id); // Log request received
   try {
     if (mongoose.connection.readyState !== 1) {
