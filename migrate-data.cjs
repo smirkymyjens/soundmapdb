@@ -5,36 +5,32 @@ const path = require('path');
 
 const DATABASE_FILE = path.join(__dirname, 'songDatabase.json');
 
-// MongoDB Schemas
+// MongoDB Schemas (Simplified)
 const artistSchema = new mongoose.Schema({
   id: String,
   name: String
-}, { _id: false }); // Disable _id for subdocuments if not needed
+}, { _id: false }); // Still disable _id for subdocuments if not needed
 
 const imageSchema = new mongoose.Schema({
   height: Number,
   width: Number,
   url: String
-}, { _id: false }); // Disable _id for subdocuments if not needed
+}, { _id: false }); // Still disable _id for subdocuments if not needed
 
 const albumSchema = new mongoose.Schema({
     id: String,
     name: String,
     images: [imageSchema]
-}, { _id: false }); // Disable _id for subdocuments if not needed
+}, { _id: false }); // Still disable _id for subdocuments if not needed
 
-const songContentSchema = new mongoose.Schema({
-    id: String,
-    name: String,
-    artists: [artistSchema],
-    album: albumSchema,
-    uri: String,
-    popularity: Number
-}, { _id: false }); // Disable _id for subdocuments if not needed
-
+// Main song schema with flattened fields
 const songSchema = new mongoose.Schema({
-  id: Number,
-  song: songContentSchema,
+  spotifyId: String,
+  name: String,
+  artists: [artistSchema],
+  album: albumSchema,
+  uri: String,
+  popularity: Number,
   number: String,
   owner: String
 });
@@ -75,29 +71,24 @@ const migrateData = async () => {
 
     for (const songData of songsToMigrate) {
       try {
-        // Manually construct the document to ensure schema compliance
+        // Manually construct the flattened document to ensure schema compliance
         const songDocument = new Song({
-            id: songData.id,
-            song: {
-                id: songData.song?.id,
-                name: songData.song?.name,
-                // Ensure artists is an array of objects with name and id
-                artists: songData.song?.artists && Array.isArray(songData.song.artists)
-                    ? songData.song.artists.map(artist => ({ id: artist.id, name: artist.name }))
+            spotifyId: songData.song?.id, // Map original song.id to the new spotifyId field
+            name: songData.song?.name,    // Map original song.name directly
+            artists: songData.song?.artists && Array.isArray(songData.song.artists) // Map and ensure artists array structure
+                ? songData.song.artists.map(artist => ({ id: artist.id, name: artist.name }))
+                : [],
+             album: songData.song?.album ? { // Map the original album object directly
+                id: songData.song.album.id,
+                name: songData.song.album.name,
+                 images: songData.song.album.images && Array.isArray(songData.song.album.images) // Map and ensure images array structure
+                    ? songData.song.album.images.map(image => ({ url: image.url, height: image.height, width: image.width }))
                     : [],
-                 album: {
-                    id: songData.song?.album?.id,
-                    name: songData.song?.album?.name,
-                    // Ensure images is an array of objects with url, height, width
-                     images: songData.song?.album?.images && Array.isArray(songData.song.album.images)
-                        ? songData.song.album.images.map(image => ({ url: image.url, height: image.height, width: image.width }))
-                        : [],
-                 },
-                uri: songData.song?.uri,
-                popularity: songData.song?.popularity,
-            },
-            number: songData.number,
-            owner: songData.owner,
+             } : undefined, // Handle cases where album might be missing
+            uri: songData.song?.uri,        // Map original song.uri directly
+            popularity: songData.song?.popularity, // Map original song.popularity directly
+            number: songData.number,        // Keep existing mapping for number
+            owner: songData.owner,          // Keep existing mapping for owner
         });
 
         // Validate the document against the schema

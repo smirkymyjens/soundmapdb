@@ -21,41 +21,38 @@ app.use(cors());
 app.use(express.json());
 app.use(express.static(path.join(__dirname, 'dist')));
 
-// MongoDB Schema
-const artistSchema = new mongoose.Schema({
-  id: String,
-  name: String
-}, { _id: false }); // Disable _id for subdocuments if not needed
+    // MongoDB Schema
+    const artistSchema = new mongoose.Schema({
+      id: String,
+      name: String
+    }, { _id: false }); // Still disable _id for subdocuments if not needed
 
-const imageSchema = new mongoose.Schema({
-  height: Number,
-  width: Number,
-  url: String
-}, { _id: false }); // Disable _id for subdocuments if not needed
+    const imageSchema = new mongoose.Schema({
+      height: Number,
+      width: Number,
+      url: String
+    }, { _id: false }); // Still disable _id for subdocuments if not needed
 
-const albumSchema = new mongoose.Schema({
-    id: String,
-    name: String,
-    images: [imageSchema]
-}, { _id: false }); // Disable _id for subdocuments if not needed
+    const albumSchema = new mongoose.Schema({
+        id: String,
+        name: String,
+        images: [imageSchema]
+    }, { _id: false }); // Still disable _id for subdocuments if not needed
 
-const songContentSchema = new mongoose.Schema({
-    id: String,
-    name: String,
-    artists: [artistSchema],
-    album: albumSchema,
-    uri: String,
-    popularity: Number
-}, { _id: false }); // Disable _id for subdocuments if not needed
+    // Main song schema with flattened fields
+    const songSchema = new mongoose.Schema({
+      // Using Spotify song ID as a regular field. Mongoose _id will be the primary key.
+      spotifyId: String, // Store the Spotify ID here (previously song.id)
+      name: String,      // Previously song.name
+      artists: [artistSchema], // Previously song.artists
+      album: albumSchema,       // Previously song.album
+      uri: String,       // Previously song.uri
+      popularity: Number,// Previously song.popularity
+      number: String,    // Remains the same
+      owner: String      // Remains the same
+    });
 
-const songSchema = new mongoose.Schema({
-  id: Number,
-  song: songContentSchema,
-  number: String,
-  owner: String
-});
-
-const Song = mongoose.model('Song', songSchema);
+    const Song = mongoose.model('Song', songSchema);
 
 // MongoDB connection with retry logic
 const connectWithRetry = async () => {
@@ -134,64 +131,64 @@ app.get('/api/songs', async (req, res) => {
       }
       console.log('Database reconnected successfully');
     }
-    const songs = await Song.find().select('song.artists song.album.images song.id song.name song.album.id song.album.name song.uri song.popularity number owner').lean();
+
+    // Query the songs collection. We no longer need to select deeply nested fields explicitly
+    const songs = await Song.find().lean();
     console.log(`Found ${songs.length} songs`); // Log number of songs found
 
     // Log the raw songs array retrieved from the database
     console.log('Raw songs array from database:', songs);
 
-    // Log the raw song data before formatting for debugging
-    console.log('Raw song data for first 5 items:', songs.slice(0, 5).map(item => item.song));
-
-    // Apply mapping logic to format songs for the frontend with more robust data extraction
+    // Apply mapping logic to format songs for the frontend with robust data extraction from flattened structure
     const formattedSongs = songs.map(item => {
-        // Add detailed logging here
-        console.log(`Processing song: ${item.song?.name || 'Unknown'} (ID: ${item.song?.id || 'Unknown'}`);
-        console.log('item.song:', item.song);
-        console.log('item.song.artists:', item.song?.artists);
-        console.log('item.song.album.images:', item.song?.album?.images);
+        // Update logs for flattened structure
+        console.log(`Processing song: ${item.name || 'Unknown'} (ID: ${item.spotifyId || item._id})`);
+        console.log('item:', item); // Log the entire item for debugging
+        console.log('item.artists:', item.artists);
+        console.log('item.album?.images:', item.album?.images);
 
-        // Find a suitable album image URL
+
+        // Find a suitable album image URL from the flattened album structure
         let albumImageUrl = null;
-        if (item.song?.album?.images && item.song.album.images.length > 0) {
+        if (item.album?.images && item.album.images.length > 0) {
             // Try to find a 300x300 image first
-            const mediumImage = item.song.album.images.find(image => image.height === 300 || image.width === 300);
+            const mediumImage = item.album.images.find(image => image.height === 300 || image.width === 300);
             if (mediumImage?.url) {
                 albumImageUrl = mediumImage.url;
             } else {
                 // Otherwise, take the URL of the first image with a URL
-                 albumImageUrl = item.song.album.images.find(image => image.url)?.url || null;
+                albumImageUrl = item.album.images.find(image => image.url)?.url || null;
             }
         }
-         // Fallback to old albumImage property if no suitable image found in nested structure
-        if (!albumImageUrl && item.song?.albumImage) {
-             albumImageUrl = item.song.albumImage;
+        // Fallback to an old albumImage property if needed (ensure this property exists in your data if used)
+        if (!albumImageUrl && item.albumImage) { // Note: albumImage is not in new schema, remove if not needed
+            albumImageUrl = item.albumImage;
         }
 
         const simplifiedSong = {
             _id: item._id, // Include _id for delete operations
-            id: item.song?.id, // Use optional chaining for safety
-            name: item.song?.name || 'Unknown Song', // Use optional chaining and fallback
-            // More robust artist extraction
-            artist: (item.song?.artists && item.song.artists.length > 0 
-                      ? item.song.artists.map(artist => artist.name).join(', ') 
-                      : item.song?.artist) || 'Unknown Artist', 
+            id: item.spotifyId, // Use the new spotifyId field
+            name: item.name || 'Unknown Song', // Use flattened name
+            // More robust artist extraction from flattened artists array
+            artist: (item.artists && item.artists.length > 0
+                      ? item.artists.map(artist => artist.name).join(', ')
+                      : item.artist) || 'Unknown Artist', // Use flattened artists
             albumImage: albumImageUrl,
-            number: item.number || '', // Fallback for number
-            owner: item.owner || 'Unknown Owner', // Fallback for owner
-            popularity: item.song?.popularity || 0 // Fallback for popularity
+            number: item.number || '', // Use flattened number
+            owner: item.owner || 'Unknown Owner', // Use flattened owner
+            popularity: item.popularity || 0 // Use flattened popularity
           };
           return simplifiedSong;
     });
 
-    console.log('First few formatted songs:', formattedSongs.slice(0, 5)); // Log example formatted data
+        console.log('First few formatted songs:', formattedSongs.slice(0, 5)); // Log example formatted data
 
-    res.json(formattedSongs);
-  } catch (error) {
-    console.error('Error fetching songs:', error);
-    res.status(500).json({ error: 'Failed to fetch songs' });
-  }
-});
+        res.json(formattedSongs);
+      } catch (error) {
+        console.error('Error fetching songs:', error);
+        res.status(500).json({ error: 'Failed to fetch songs' });
+      }
+    });
 
 // Add a new song
 app.post('/api/songs', async (req, res) => {
