@@ -56,10 +56,10 @@ export default function DatabaseContent({ songDatabase, setSongDatabase, saveToJ
 
     switch(searchField) {
       case 'song':
-        // Check both song name and artist name for song search
-        return (item.song.name && item.song.name.toLowerCase().includes(query)) ||
-               (item.song.artists && item.song.artists.some(artist => artist.name.toLowerCase().includes(query))) ||
-               (item.song.artist && item.song.artist.toLowerCase().includes(query)); // Fallback for simplified structure
+        // Check both song name and artist name for song search (using flattened structure)
+        return (item.name && item.name.toLowerCase().includes(query)) ||
+               (item.artists && Array.isArray(item.artists) && item.artists.some(artist => artist.name && artist.name.toLowerCase().includes(query))) ||
+               (item.artist && item.artist.toLowerCase().includes(query)); // Keep fallback for 'artist' string if backend provides it
       case 'number':
         return item.number && item.number.toString().includes(query);
       case 'owner':
@@ -68,33 +68,45 @@ export default function DatabaseContent({ songDatabase, setSongDatabase, saveToJ
         return true;
     }
   });
-
   console.log('Filtered songs count:', filteredSongs.length);
 
   // Sort filtered songs based on state
   const sortedSongs = [...filteredSongs].sort((a, b) => {
-    // Default sort by id descending
+    // Default sort by id descending (assuming _id or a similar ID is used for default)
+    // If using spotifyId for default sort, change b.id - a.id to compare spotifyId strings
     if (sortColumn === null) {
-      return b.id - a.id;
+       // Assuming _id or original 'id' is used for default. Adjust if spotifyId is preferred.
+       // If your simplified backend returns 'id' as spotifyId, use that.
+       // Let's sort by name by default if no column is selected for simplicity with flattened data.
+       const aName = (a.name || '').toLowerCase();
+       const bName = (b.name || '').toLowerCase();
+       if (aName < bName) return -1;
+       if (aName > bName) return 1;
+       return 0;
     }
 
     let aValue, bValue;
 
     switch (sortColumn) {
       case 'song':
-        aValue = (a.song.name || '').toLowerCase();
-        bValue = (b.song.name || '').toLowerCase();
+        aValue = (a.name || '').toLowerCase(); // Access flattened name
+        bValue = (b.name || '').toLowerCase(); // Access flattened name
         break;
       case 'number':
         aValue = parseInt(a.number || '0', 10);
         bValue = parseInt(b.number || '0', 10);
         break;
       case 'popularity':
-        aValue = parseInt(a.song.popularity || '0', 10);
-        bValue = parseInt(b.song.popularity || '0', 10);
+        aValue = parseInt(a.popularity || '0', 10); // Access flattened popularity
+        bValue = parseInt(b.popularity || '0', 10); // Access flattened popularity
         break;
       default:
-        return b.id - a.id; // Should not happen, but fallback to default sort
+        // Fallback to sorting by name if an unknown column is passed
+        const aName = (a.name || '').toLowerCase();
+        const bName = (b.name || '').toLowerCase();
+        if (aName < bName) return -1;
+        if (aName > bName) return 1;
+        return 0;
     }
 
     if (aValue < bValue) {
@@ -202,7 +214,7 @@ export default function DatabaseContent({ songDatabase, setSongDatabase, saveToJ
             <div key={item._id} className="grid grid-cols-12 items-center py-1 border-b border-[#232825] last:border-b-0">
               <div className="col-span-1">
                 {item.albumImage ? (
-                   <img src={item.albumImage} alt={item.song.name} className="w-7 h-7 rounded" />
+                   <img src={item.albumImage} alt={item.name} className="w-7 h-7 rounded" />
                 ) : (
                   <div className="w-7 h-7 flex items-center justify-center bg-[#232825] rounded">
                     <FaMusic className="text-green-500 text-lg" />
