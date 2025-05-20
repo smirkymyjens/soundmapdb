@@ -111,7 +111,7 @@ const AddSongsContent = ({ songDatabase, setSongDatabase, getPassword }) => {
         number: printNumber, // Get the number from the input field
         owner: owner         // Get the owner from the input field
       };
-      
+
       try {
         const response = await fetch(`${BACKEND_API_URL}/api/songs`, {
           method: 'POST',
@@ -122,14 +122,20 @@ const AddSongsContent = ({ songDatabase, setSongDatabase, getPassword }) => {
         });
 
         if (!response.ok) {
-          throw new Error('Failed to add song');
+          // If backend failed, log the error response body if available
+          const errorText = await response.text();
+          console.error('Failed to add song on backend. Status:', response.status, 'Body:', errorText);
+          throw new Error('Failed to add song: ' + (errorText || response.statusText));
         }
 
         const result = await response.json();
         if (result.success) {
+          // Add the newly saved song (which includes the _id from the backend)
           const updatedDatabase = [...songDatabase, result.song];
           setSongDatabase(updatedDatabase);
-          localStorage.setItem('songDatabase', JSON.stringify(updatedDatabase));
+          // Note: Local storage is less critical now as backend is the source of truth
+          // localStorage.setItem('songDatabase', JSON.stringify(updatedDatabase));
+
 
           // Reset fields after adding
           setSearchQuery('');
@@ -139,10 +145,11 @@ const AddSongsContent = ({ songDatabase, setSongDatabase, getPassword }) => {
         }
       } catch (error) {
         console.error('Error adding song:', error);
-        // Fallback to local storage only
-        const updatedDatabase = [...songDatabase, newSong];
-        setSongDatabase(updatedDatabase);
-        localStorage.setItem('songDatabase', JSON.stringify(updatedDatabase));
+         // Display a user-friendly error message if needed
+         alert('Failed to add song: ' + error.message);
+
+        // Removed fallback to local storage only, as backend should be the source of truth now.
+        // If backend fails, the song wasn't added.
       }
     }
   };
