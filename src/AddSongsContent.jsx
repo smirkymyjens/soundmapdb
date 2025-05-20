@@ -11,6 +11,8 @@ const clientSecret = process.env.REACT_APP_SPOTIFY_CLIENT_SECRET;
 async function getSpotifyToken(clientId, clientSecret) {
   // Implementation from MainContent.jsx
   try {
+    console.log('Using Spotify Client ID (first 5 chars): ', clientId ? clientId.substring(0, 5) : 'null/undefined');
+    console.log('Using Spotify Client Secret (first 5 chars): ', clientSecret ? clientSecret.substring(0, 5) : 'null/undefined');
     const result = await fetch('https://accounts.spotify.com/api/token', {
       method: 'POST',
       headers: {
