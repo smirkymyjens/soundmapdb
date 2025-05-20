@@ -104,8 +104,22 @@ const AddSongsContent = ({ songDatabase, setSongDatabase, getPassword }) => {
       const newSong = {
         spotifyId: selectedSong.id, // Use the Spotify track ID for the new spotifyId field
         name: selectedSong.name,
-        artists: selectedSong.artists, // Spotify data already provides artists in a compatible array structure
-        album: selectedSong.album,   // Spotify data already provides album in a compatible object structure
+        // Flatten the artists array to only include id and name
+        artists: selectedSong.artists.map(artist => ({
+          id: artist.id,
+          name: artist.name,
+        })),
+        // Flatten the album object to only include id, name, and formatted images
+        album: {
+          id: selectedSong.album.id,
+          name: selectedSong.album.name,
+          // Flatten the album images array
+          images: selectedSong.album.images.map(image => ({
+            height: image.height,
+            width: image.width,
+            url: image.url,
+          })),
+        },
         uri: selectedSong.uri,
         popularity: selectedSong.popularity,
         number: printNumber, // Get the number from the input field

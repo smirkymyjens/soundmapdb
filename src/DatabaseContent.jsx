@@ -35,7 +35,7 @@ export default function DatabaseContent({ songDatabase, setSongDatabase, saveToJ
       }
 
       // If backend deletion was successful, update local state
-      const updatedDatabase = songDatabase.filter(item => item.id !== id);
+      const updatedDatabase = songDatabase.filter(item => item._id !== id);
       setSongDatabase(updatedDatabase);
       // Note: Local storage update is less critical now as backend is the source of truth
       // localStorage.setItem('songDatabase', JSON.stringify(updatedDatabase));
