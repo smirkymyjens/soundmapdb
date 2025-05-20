@@ -4,6 +4,7 @@ import Sidebar from './Sidebar';
 import AddSongsContent from './AddSongsContent';
 import { API_URL } from './config';
 import Login from './Login';
+import { Analytics } from "@vercel/analytics/react";
 
 const fetchDatabase = async (setIsLoading, setSongDatabase, setError, setDbStatus) => {
   console.log('fetchDatabase function started');
@@ -73,6 +74,7 @@ const App = () => {
 
   return (
     <div className="flex min-h-screen bg-black">
+      <Analytics />
       {!isLoggedIn ? (
         <>
           {console.log('Rendering Login component')}
