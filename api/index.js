@@ -86,6 +86,7 @@ const connectWithRetry = async () => {
       connectTimeoutMS: 15000, // Increased connect timeout
       retryWrites: true,
       retryReads: true,
+      readPreference: 'secondaryPreferred'
     });
 
     console.log('Successfully connected to MongoDB');
