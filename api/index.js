@@ -272,35 +272,68 @@ app.get('/api/songs/cleanup', async (req, res) => {
       }
       console.log('Database reconnected successfully');
     }
+    
     const songs = await Song.find();
-    const cleanedSongs = songs.map(item => {
-      if (!item.song.artists && item.song.artist) {
-        return item;
+    
+    const cleanupPromises = songs.map(async (item) => {
+      // Access properties directly from the flattened item
+      let needsUpdate = false;
+      const update = {};
+
+      // Example: Ensure artists is an array and format artist string if needed
+      if (item.artists && Array.isArray(item.artists)) {
+          const artistString = item.artists.map(artist => artist.name).join(', ');
+          // You might decide if you want to store this artist string permanently
+          // If you want to add it, uncomment the line below:
+          // update.artist = artistString;
+          // needsUpdate = true;
+      } else if (item.artist) {
+          // If there's an old 'artist' string field but no 'artists' array, potentially convert it
+          // This logic depends on what your cleanup intends to fix
+          // console.log(`Song ${item._id} has old artist string: ${item.artist}`);
+          // You might want to create an 'artists' array from the 'artist' string
+          // update.artists = [{ name: item.artist }];
+          // delete update.artist; // Remove the old field
+          // needsUpdate = true;
       }
-      
-      const simplifiedSong = {
-        id: item.song.id,
-        name: item.song.name,
-        artist: item.song.artists && item.song.artists.length > 0 ? item.song.artists[0].name : item.song.artist || 'Unknown Artist',
-        albumImage: item.song.album && item.song.album.images && item.song.album.images.length > 1 
-          ? item.song.album.images[1].url
-          : item.song.album && item.song.album.images && item.song.album.images.length > 0
-            ? item.song.album.images[0].url
-            : item.song.albumImage || null,
-      };
-      
-      return {
-        ...item.toObject(),
-        song: simplifiedSong
-      };
+
+      // Example: Find and potentially store album image URL
+      let albumImageUrl = null;
+      if (item.album?.images && item.album.images.length > 0) {
+          const mediumImage = item.album.images.find(image => image.height === 300 || image.width === 300);
+          if (mediumImage?.url) {
+              albumImageUrl = mediumImage.url;
+          } else {
+              albumImageUrl = item.album.images.find(image => image.url)?.url || null;
+          }
+          // If you want to add this derived image URL permanently, uncomment below:
+          // update.albumImage = albumImageUrl;
+          // needsUpdate = true;
+      } else if (item.albumImage) {
+          // If there's an old albumImage string but no album/images, handle it
+          // This depends on your cleanup goal
+          // console.log(`Song ${item._id} has old albumImage string: ${item.albumImage}`);
+          // You might want to populate the album/images structure or just keep it.
+      }
+
+      // Add other cleanup/migration logic here if needed for other fields
+      // For example, ensuring required fields exist or have default values.
+
+      if (needsUpdate) {
+        console.log(`Updating song ${item._id}`, update);
+        // Update the document at the top level, not nested under 'song'
+        return Song.findByIdAndUpdate(item._id, update, { new: true });
+      } else {
+        return Promise.resolve(item); // No update needed for this item
+      }
     });
     
-    await Promise.all(cleanedSongs.map(async (song) => {
-      await Song.findByIdAndUpdate(song._id, { song: song.song });
-    }));
+    await Promise.all(cleanupPromises);
     
     console.log('Database cleanup completed'); // Log successful cleanup
-    res.json({ success: true, message: 'Database cleaned successfully', count: cleanedSongs.length });
+    // Consider returning a summary of changes if needed
+    res.json({ success: true, message: 'Database cleanup completed.' });
+
   } catch (error) {
     console.error('Error cleaning database:', error);
     res.status(500).json({ error: 'Failed to clean database' });
