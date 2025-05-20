@@ -144,8 +144,38 @@ const AddSongsContent = ({ songDatabase, setSongDatabase, getPassword }) => {
 
         const result = await response.json();
         if (result.success) {
-          // Add the newly saved song (which includes the _id from the backend)
-          const updatedDatabase = [...songDatabase, result.song];
+          // Format the newly saved song data to match the structure expected by DatabaseContent
+          const newlyAddedSong = result.song; // This is the saved Mongoose document
+
+          // Apply the same formatting logic as the backend GET endpoint
+          let albumImageUrl = null;
+          if (newlyAddedSong.album?.images && newlyAddedSong.album.images.length > 0) {
+              // Try to find a 300x300 image first
+              const mediumImage = newlyAddedSong.album.images.find(image => image.height === 300 || image.width === 300);
+              if (mediumImage?.url) {
+                  albumImageUrl = mediumImage.url;
+              } else {
+                  // Otherwise, take the URL of the first image with a URL
+                  albumImageUrl = newlyAddedSong.album.images.find(image => image.url)?.url || null;
+              }
+          }
+
+          const formattedAddedSong = {
+              _id: newlyAddedSong._id, // Include _id
+              id: newlyAddedSong.spotifyId, // Use spotifyId
+              name: newlyAddedSong.name || 'Unknown Song', // Use flattened name
+              // More robust artist extraction from flattened artists array
+              artist: (newlyAddedSong.artists && newlyAddedSong.artists.length > 0
+                        ? newlyAddedSong.artists.map(artist => artist.name).join(', ')
+                        : newlyAddedSong.artist) || 'Unknown Artist', // Use flattened artists
+              albumImage: albumImageUrl,
+              number: newlyAddedSong.number || '', // Use flattened number
+              owner: newlyAddedSong.owner || 'Unknown Owner', // Use flattened owner
+              popularity: newlyAddedSong.popularity || 0 // Use flattened popularity
+            };
+
+          // Add the newly saved and formatted song to the database state
+          const updatedDatabase = [...songDatabase, formattedAddedSong];
           setSongDatabase(updatedDatabase);
           // Note: Local storage is less critical now as backend is the source of truth
           // localStorage.setItem('songDatabase', JSON.stringify(updatedDatabase));
