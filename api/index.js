@@ -134,7 +134,7 @@ app.get('/api/songs', async (req, res) => {
       }
       console.log('Database reconnected successfully');
     }
-    const songs = await Song.findOne().select('song.artists song.album.images song.id song.name song.album.id song.album.name song.uri song.popularity number owner').lean();
+    const songs = await Song.find().select('song.artists song.album.images song.id song.name song.album.id song.album.name song.uri song.popularity number owner').lean();
     console.log(`Found ${songs.length} songs`); // Log number of songs found
 
     // Log the raw songs array retrieved from the database
