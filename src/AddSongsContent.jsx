@@ -2,9 +2,9 @@ import React, { useState, useRef } from 'react'; // Import useRef for debouncing
 import { FaSearch, FaMusic, FaPlus } from 'react-icons/fa'; // Assuming icons are available
 import { BACKEND_API_URL } from './config'; // Import from config file
 
-// Get Spotify keys from environment variables
-const clientId = process.env.REACT_APP_SPOTIFY_CLIENT_ID;
-const clientSecret = process.env.REACT_APP_SPOTIFY_CLIENT_SECRET;
+// Get Spotify keys from environment variables using import.meta.env with VITE_ prefix
+const clientId = import.meta.env.VITE_REACT_APP_SPOTIFY_CLIENT_ID;
+const clientSecret = import.meta.env.VITE_REACT_APP_SPOTIFY_CLIENT_SECRET;
 
 // Placeholder functions for Spotify API interaction (adapt from MainContent.jsx if needed)
 // These should ideally be in a separate service file or passed as props
